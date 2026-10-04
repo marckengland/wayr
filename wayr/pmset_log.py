@@ -33,6 +33,9 @@ _NOISE_PROCESSES = {"powerd", "kernel_task"}
 
 # How close a scheduled wake must be to a "wakeAt" request to be attributed.
 _REQUEST_TOLERANCE = timedelta(minutes=3)
+# Assertions logged this close to a sleep/wake transition belong to that transition:
+# pmset often writes a process's assertion a moment before the DarkWake line itself.
+_TRANSITION_WINDOW = timedelta(seconds=15)
 
 
 @dataclass
@@ -167,6 +170,9 @@ class DarkWake:
         return secs
 
 
+STORM_WAKES_PER_HOUR = 60
+
+
 @dataclass
 class SleepSession:
     start: datetime
@@ -226,6 +232,18 @@ class SleepSession:
     def wake_cause(self) -> WakeCause:
         return classify_wake(self.wake_reason)
 
+    @property
+    def wakes_per_hour(self) -> Optional[float]:
+        if self.duration < 1800:
+            return None
+        return len(self.dark_wakes) / (self.duration / 3600)
+
+    @property
+    def is_storm(self) -> bool:
+        """Waking more than once a minute. A healthy Mac wakes a few times an hour."""
+        rate = self.wakes_per_hour
+        return rate is not None and rate >= STORM_WAKES_PER_HOUR and len(self.dark_wakes) >= 100
+
 
 @dataclass
 class Analysis:
@@ -266,6 +284,19 @@ class Analysis:
                 secs[p] += d.duration
         return [(p, c, secs[p]) for p, c in Counter(n).most_common()]
 
+    def storms(self) -> List[List[SleepSession]]:
+        """Back-to-back storm sessions merged into periods (a brief wake doesn't end a storm)."""
+        periods: List[List[SleepSession]] = []
+        for s in self.sessions:
+            if not s.is_storm:
+                continue
+            last = periods[-1][-1] if periods else None
+            if last is not None and last.end is not None and s.start - last.end <= timedelta(minutes=30):
+                periods[-1].append(s)
+            else:
+                periods.append([s])
+        return periods
+
     def asleep_activity(self) -> List[Tuple[str, int]]:
         total: Counter = Counter()
         for s in self.sessions:
@@ -300,15 +331,38 @@ def analyze(entries: Iterable[Entry], since: Optional[datetime] = None) -> Analy
     failures: List[Entry] = []
     cur: Optional[SleepSession] = None
     dw: Optional[DarkWake] = None
+    prev_dw: Optional[DarkWake] = None  # the dark wake that just ended
+    last_sleep: Optional[datetime] = None
     state = "awake"
     requests: List[WakeRequest] = []
+    # Assertions seen while asleep, held until we know whether a wake follows right after.
+    # Each carries the dark wake that ended just before it (if it was logged right after it).
+    pending: List[Tuple[datetime, str, Optional[DarkWake], timedelta]] = []
+
+    def settle(next_ts: Optional[datetime], into: Optional[DarkWake]) -> None:
+        """Assign each pending assertion to the nearer of the wake right after it and the
+        wake that ended right before it. Anything near neither really happened while asleep."""
+        for ts, name, tail_of, since_sleep in pending:
+            near_next = next_ts is not None and next_ts - ts <= _TRANSITION_WINDOW
+            options = []
+            if near_next and into is not None:
+                options.append((next_ts - ts, into))
+            if tail_of is not None:
+                options.append((since_sleep, tail_of))
+            if options:
+                min(options, key=lambda o: o[0])[1].processes[name] += 1
+            elif not near_next and cur is not None:
+                cur.asleep_activity[name] += 1
+            # else: right before a full wake. That's the user waking it, not "asleep".
+        pending.clear()
 
     for e in sorted(entries, key=lambda x: x.ts):
         k = e.kind
         if k == "sleep":
             if dw is not None and dw.end is None:
                 dw.end = e.ts
-            dw = None
+            settle(None, None)
+            prev_dw, dw, last_sleep = dw, None, e.ts
             if cur is None:
                 cur = SleepSession(start=e.ts, sleep_reason=e.sleep_reason)
             state = "sleep"
@@ -318,11 +372,13 @@ def analyze(entries: Iterable[Entry], since: Optional[datetime] = None) -> Analy
             if dw is not None and dw.end is None:
                 dw.end = e.ts
             dw = DarkWake(start=e.ts, reason=e.wake_reason, logged_secs=e.logged_secs)
+            settle(e.ts, dw)
             _attach_request(dw, requests)
             cur.dark_wakes.append(dw)
             state = "darkwake"
         elif k in ("wake", "boot", "shutdown"):
             if cur is not None:
+                settle(e.ts, None)  # right before a full wake: part of waking up, not "asleep"
                 if dw is not None and dw.end is None:
                     dw.end = e.ts
                     dw.promoted = k == "wake"
@@ -333,7 +389,8 @@ def analyze(entries: Iterable[Entry], since: Optional[datetime] = None) -> Analy
                 else:
                     cur.wake_reason = "Boot" if k == "boot" else "Shutdown"
                 sessions.append(cur)
-            cur, dw, state, requests = None, None, "awake", []
+            pending.clear()
+            cur, dw, prev_dw, state, requests = None, None, None, "awake", []
             continue
         elif k == "assertion":
             m = _ASSERTION_RE.search(e.message)
@@ -343,7 +400,9 @@ def analyze(entries: Iterable[Entry], since: Optional[datetime] = None) -> Analy
                     if state == "darkwake" and dw is not None:
                         dw.processes[name] += 1
                     elif state == "sleep" and cur is not None:
-                        cur.asleep_activity[name] += 1
+                        since_sleep = e.ts - last_sleep if last_sleep is not None else _TRANSITION_WINDOW * 2
+                        just_slept = since_sleep <= _TRANSITION_WINDOW
+                        pending.append((e.ts, name, prev_dw if just_slept else None, since_sleep))
         elif k == "wake_requests":
             requests = parse_wake_requests(e.message)
         elif k == "failure":
@@ -353,6 +412,7 @@ def analyze(entries: Iterable[Entry], since: Optional[datetime] = None) -> Analy
             cur.observe(e)
 
     if cur is not None:  # still asleep at the end of the log (or log truncated)
+        settle(None, None)
         sessions.append(cur)
 
     if since is not None:

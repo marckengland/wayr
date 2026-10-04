@@ -53,7 +53,8 @@ def parse_prevented_by(pmset_g: str) -> List[str]:
     for line in pmset_g.splitlines():
         m = re.search(r"sleep prevented by ([^)]*)\)", line)
         if m and line.strip().startswith("sleep "):
-            return [p.strip() for p in m.group(1).split(",") if p.strip()]
+            names = [p.strip() for p in m.group(1).split(",") if p.strip()]
+            return list(dict.fromkeys(names))  # dedupe, keep order
     return []
 
 
@@ -131,8 +132,9 @@ def audit(s: PowerSettings, apple_silicon: bool) -> List[Finding]:
 
     if on(b, "powernap"):
         f.append(Finding(
-            "medium", "Power Nap is ON while on battery",
-            "Lets the Mac dark-wake for Mail, iCloud, Time Machine, etc. while asleep.",
+            "low", "Power Nap is ON while on battery",
+            "Lets the Mac dark-wake briefly for Mail, iCloud, Find My, etc. Usually harmless.\n"
+            "Only worth turning off if `wayr sleep` shows many Power Nap/maintenance wakes.",
             "sudo pmset -b powernap 0",
         ))
     elif on(a, "powernap"):
@@ -198,12 +200,21 @@ def audit(s: PowerSettings, apple_silicon: bool) -> List[Finding]:
             "sudo pmset -b lowpowermode 1",
         ))
 
-    if s.scheduled:
+    # macOS schedules its own timers (by 'com.apple.…'). They come back if cancelled.
+    system = [x for x in s.scheduled if "by 'com.apple." in x]
+    other = [x for x in s.scheduled if x not in system]
+    if other:
         f.append(Finding(
-            "medium", f"{len(s.scheduled)} scheduled wake(s) (pmset -g sched)",
-            "\n".join(s.scheduled),
+            "medium", f"{len(other)} scheduled wake(s) set by an app or by you (pmset -g sched)",
+            "\n".join(other),
             "sudo pmset schedule cancelall   # one-off events\n"
             "sudo pmset repeat cancel        # repeating events",
+        ))
+    if system:
+        f.append(Finding(
+            "info", f"{len(system)} wake timer(s) scheduled by macOS itself",
+            "\n".join(re.sub(r"^\[\d+\]\s+", "", x) for x in system)
+            + "\nNormal. Power Nap and TCP keep-alive decide how much happens in these wakes.",
         ))
 
     if not f:

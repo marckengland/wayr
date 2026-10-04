@@ -35,11 +35,40 @@ def _process_note(name: str) -> str:
     return k.what if k else ""
 
 
-def sleep_findings(a: pmset_log.Analysis) -> List[Finding]:
+def _every(secs: float) -> str:
+    return f"every ~{fmt_duration(secs)}"
+
+
+def sleep_findings(a: pmset_log.Analysis, womp_off: Optional[bool] = None) -> List[Finding]:
     out: List[Finding] = []
+    storms = a.storms()
+    for period in storms:
+        start, end = period[0].start, period[-1].end
+        wakes = sum(len(s.dark_wakes) for s in period)
+        secs = sum(s.duration for s in period)
+        awake = sum(s.darkwake_secs for s in period)
+        causes = pmset_log.Analysis(period, []).reasons()
+        main = f"Main cause: {causes[0][0].label} ({causes[0][1]:,} wakes)." if causes else ""
+        out.append(Finding(
+            "high",
+            f"Wake storm {_fmt_ts(start)} → {_fmt_ts(end)}: woke {wakes:,} times, {_every(secs / wakes)}",
+            f"Awake {fmt_duration(awake)} ({100 * awake / secs:.0f}%) of that time. {main}\n"
+            "A healthy Mac wakes a few times an hour. This is what makes a laptop warm in a bag.",
+        ))
+    if storms:
+        last_storm_end = storms[-1][-1].end
+        after = [s for s in a.sessions if last_storm_end and s.start >= last_storm_end
+                 and s.wakes_per_hour is not None]
+        if after and not any(s.is_storm for s in after):
+            rate = sum(len(s.dark_wakes) for s in after) / (sum(s.duration for s in after) / 3600)
+            out.append(Finding(
+                "ok", f"Since {_fmt_ts(after[0].start)}, sleep looks normal (~{rate:.0f} wakes/hour)",
+                "Whatever changed around then stopped the storm.",
+            ))
+
     worst = max((s for s in a.sessions if s.drain_per_hour is not None),
                 key=lambda s: s.drain_per_hour, default=None)
-    if worst is not None and worst.drain_per_hour >= 1.5:
+    if worst is not None and worst.drain_per_hour >= 1.5 and not worst.is_storm:
         sev = "high" if worst.drain_per_hour >= 3 else "medium"
         out.append(Finding(
             sev,
@@ -50,34 +79,53 @@ def sleep_findings(a: pmset_log.Analysis) -> List[Finding]:
         ))
     total_sleep = sum(s.duration for s in a.sessions)
     total_dw = sum(s.darkwake_secs for s in a.sessions)
-    if total_sleep > 3600 and total_dw / total_sleep >= 0.10:
+    if not storms and total_sleep > 3600 and total_dw / total_sleep >= 0.10:
         out.append(Finding(
             "medium",
             f"Awake {fmt_duration(total_dw)} ({100 * total_dw / total_sleep:.0f}%) of the time it was 'asleep'",
-            f"{len(a.dark_wakes)} dark wakes. See the breakdown by reason and process below.",
+            f"{len(a.dark_wakes):,} dark wakes. See the breakdown by reason and process below.",
         ))
     long_ones = [d for d in a.dark_wakes if d.duration >= 600]
     if long_ones:
         procs = sorted({p for d in long_ones for p in d.processes})
         out.append(Finding(
-            "medium",
+            "low",
             f"{len(long_ones)} dark wake(s) lasted 10+ minutes (longest {fmt_duration(max(d.duration for d in long_ones))})",
             ("Active during them: " + ", ".join(procs[:8])) if procs else
             "Long dark wakes are what make a Mac warm in a bag.",
         ))
+    sleep_hours = total_sleep / 3600
     for cause, n, secs in a.reasons()[:3]:
         if cause.category == "user" or n < 3:
             continue
-        out.append(Finding("medium" if n >= 10 else "low",
-                           f"{n}× woken by: {cause.label} ({fmt_duration(secs)} awake)",
-                           cause.advice))
+        # Only causes that matter: more than ~2 wakes/hour, or 5%+ of the sleep time awake.
+        if sleep_hours and n / sleep_hours < 2 and secs < 0.05 * total_sleep:
+            continue
+        advice = cause.advice
+        if cause.key in ("wifi_bt", "ethernet") and womp_off:
+            advice = ("'Wake for network access' is already off. Wi-Fi and Bluetooth share one chip, "
+                      "so the log can't tell them apart.\nTo find out: sleep one night with "
+                      "Bluetooth off, one with it on, and compare `wayr sleep --days 1`.")
+        out.append(Finding("medium", f"{n:,}× woken by: {cause.label} ({fmt_duration(secs)} awake)",
+                           advice))
     if a.failures:
         out.append(Finding("medium", f"{len(a.failures)} sleep/wake failure(s) logged",
                            a.failures[-1].message[:160]))
     return out
 
 
-def render_sleep(a: pmset_log.Analysis, label: str, verbose: bool, compact: bool = False) -> List[Finding]:
+def _womp_off() -> Optional[bool]:
+    """Is 'Wake for network access' off everywhere? None if we can't tell."""
+    try:
+        s = settings.collect()
+    except Exception:
+        return None
+    values = [sec.get("womp") for sec in (s.battery, s.ac) if sec.get("womp") is not None]
+    return all(v == "0" for v in values) if values else None
+
+
+def render_sleep(a: pmset_log.Analysis, label: str, verbose: bool, compact: bool = False,
+                 womp_off: Optional[bool] = None) -> List[Finding]:
     heading(f"Sleep history ({label})")
     if not a.sessions:
         note("  No sleep sessions found in this period.")
@@ -87,7 +135,7 @@ def render_sleep(a: pmset_log.Analysis, label: str, verbose: bool, compact: bool
     total_dw = sum(s.darkwake_secs for s in a.sessions)
     pct = (100 * total_dw / total_sleep) if total_sleep else 0
     print(f"  {len(a.sessions)} sleep sessions · {fmt_duration(total_sleep)} asleep · "
-          f"{len(a.dark_wakes)} dark wakes · awake {fmt_duration(total_dw)} of that ({pct:.1f}%)")
+          f"{len(a.dark_wakes):,} dark wakes · awake {fmt_duration(total_dw)} of that ({pct:.1f}%)")
     print()
 
     rows = [[style(h, "dim") for h in ("slept", "woke", "length", "battery", "dark wakes", "woke up because")]]
@@ -106,7 +154,7 @@ def render_sleep(a: pmset_log.Analysis, label: str, verbose: bool, compact: bool
             batt = style("on AC", "dim")
         else:
             batt = "?"
-        dw = f"{len(s.dark_wakes)}"
+        dw = f"{len(s.dark_wakes):,}"
         if s.dark_wakes:
             dw += f" · {fmt_duration(s.darkwake_secs)}"
             if s.longest_darkwake >= 600:
@@ -176,7 +224,7 @@ def render_sleep(a: pmset_log.Analysis, label: str, verbose: bool, compact: bool
         for e in a.failures[-5:]:
             print(f"  {_fmt_ts(e.ts)}  {e.message[:140]}")
 
-    findings = sleep_findings(a)
+    findings = sleep_findings(a, womp_off)
     if findings and not compact:
         heading("Takeaways")
         for f in findings:
@@ -190,7 +238,8 @@ def cmd_sleep(args: argparse.Namespace) -> List[Finding]:
     since = datetime.now().astimezone() - timedelta(days=days) if days else None
     a = pmset_log.analyze(entries, since=since)
     label = f"last {days} day{'s' if days != 1 else ''}" if days else "whole log"
-    return render_sleep(a, label, args.verbose)
+    womp = None if args.file else _womp_off()
+    return render_sleep(a, label, args.verbose, womp_off=womp)
 
 
 # ---------------------------------------------------------------------------
@@ -208,8 +257,8 @@ def cmd_settings(args: argparse.Namespace) -> List[Finding]:
 
 def cmd_blockers(args: argparse.Namespace) -> List[Finding]:
     state = assertions.collect()
-    prevented = settings.parse_prevented_by(run(["pmset", "-g"]).stdout)
-    found = assertions.findings(state, prevented)
+    pid_names = {p.pid: p.name for p in processes.parse_ps(run(processes.PS_ARGS).stdout)}
+    found = assertions.findings(state, pid_names)
     heading("Preventing sleep right now")
     for f in sorted(found, key=lambda f: f.rank):
         print_finding(f)
@@ -410,7 +459,8 @@ def cmd_report(args: argparse.Namespace) -> None:
         entries = _load_log(None)
         since = datetime.now().astimezone() - timedelta(days=args.days or 3)
         a = pmset_log.analyze(entries, since=since)
-        return render_sleep(a, f"last {args.days or 3} days", verbose=False, compact=True)
+        return render_sleep(a, f"last {args.days or 3} days", verbose=False, compact=True,
+                            womp_off=_womp_off())
 
     section(sleep_section)
     if record.load_snapshots():

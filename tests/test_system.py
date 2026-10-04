@@ -35,9 +35,20 @@ class SettingsTest(unittest.TestCase):
         self.assertIn("Power Nap", titles)
         self.assertIn("TCP keep-alive", titles)
         self.assertIn("ttyskeepawake", titles)
-        self.assertIn("2 scheduled wake(s)", titles)
+        self.assertIn("1 scheduled wake(s) set by an app or by you", titles)
+        self.assertIn("1 wake timer(s) scheduled by macOS itself", titles)
         self.assertNotIn("bag mode", titles)  # Intel-only suggestion
         self.assertEqual(found[0].severity, "high")
+
+    def test_macos_own_timers_are_info(self):
+        sched = (" [0]  wake at 10/04/2026 13:57:30 by 'com.apple.alarm.user-invisible-com.apple.StatusKit'\n"
+                 " [1]  wake at 10/05/2026 07:58:42 by 'com.apple.alarm.user-invisible-com.apple.osanalytics'\n")
+        s = settings.load(fixture("pmset_custom.txt"), fixture("pmset_g.txt"), sched)
+        found = settings.audit(s, apple_silicon=True)
+        timers = next(f for f in found if "scheduled by macOS" in f.title)
+        self.assertEqual(timers.severity, "info")
+        self.assertIsNone(timers.fix)
+        self.assertFalse(any("set by an app" in f.title for f in found))
 
     def test_intel_gets_hibernate_tip(self):
         found = settings.audit(self.s, apple_silicon=False)
@@ -51,23 +62,52 @@ class SettingsTest(unittest.TestCase):
 
 
 class AssertionsTest(unittest.TestCase):
-    def test_parse_and_findings(self):
+    def test_parse(self):
         st = assertions.parse(fixture("pmset_assertions.txt"))
         self.assertEqual(st.totals["PreventSystemSleep"], 1)
         self.assertEqual([a.process for a in st.owners],
                          ["powerd", "coreaudiod", "Amphetamine", "cloudd", "WindowServer"])
-        self.assertEqual(st.kernel, ["AppleUSBXHCIPort (com.apple.usb.externaldevice.14100000)"])
-        self.assertEqual(st.idle_preventers, ["IODisplayWrangler"])
         self.assertEqual(st.owners[1].on_behalf_of, 512)
-        found = assertions.findings(st, ["coreaudiod"])
-        audio = next(f for f in found if f.title.startswith("coreaudiod"))
-        self.assertIn("ps -o command= -p 512", audio.fix)
-        by_title = {f.title.split(" ")[0]: f.severity for f in found}
-        self.assertEqual(by_title["Amphetamine"], "high")
-        self.assertEqual(by_title["coreaudiod"], "medium")
-        self.assertEqual(by_title["cloudd"], "low")
-        self.assertNotIn("powerd", by_title)
-        self.assertNotIn("WindowServer", by_title)
+        self.assertEqual(st.kernel, ["AppleUSBXHCIPort"])
+
+    def test_keep_awake_app_is_high(self):
+        st = assertions.parse(fixture("pmset_assertions.txt"))
+        found = assertions.findings(st, {512: "zoom.us"})
+        by_title = {f.title: f for f in found}
+        self.assertEqual(by_title["Amphetamine is keeping the Mac awake"].severity, "high")
+        self.assertIn("zoom.us is preventing idle sleep", by_title)  # coreaudiod acting for zoom
+        self.assertIn("cloudd is doing background work", by_title)
+        self.assertFalse(any("powerd" in t or "WindowServer" in t for t in by_title))
+        self.assertFalse(any(f.severity == "ok" for f in found))
+
+    def test_groups_by_app(self):
+        # Reconstructed from a real Mac: Safari playing video + the Claude desktop app.
+        st = assertions.parse(fixture("pmset_assertions_safari.txt"))
+        found = assertions.findings(st, {1354: "com.apple.WebKit.GPU", 975: "Music"})
+        titles = [f.title for f in found]
+        self.assertEqual(titles, [
+            "Safari is preventing idle sleep",
+            "Claude is preventing idle sleep",
+            "WebKit (web page media) is preventing idle sleep",
+            "Music is preventing idle sleep",
+            "USB devices connected: USB2.0, Pulsar",
+            "Nothing here stops the Mac sleeping when you close the lid",
+        ])
+        safari = found[0]
+        self.assertEqual(safari.severity, "low")
+        self.assertIn("playing media", safari.detail)
+        self.assertIn("via: runningboardd", safari.detail)
+        self.assertIn("held up to 54m", safari.detail)
+
+    def test_unknown_pid(self):
+        st = assertions.parse(fixture("pmset_assertions_safari.txt"))
+        found = assertions.findings(st)
+        pid = next(f for f in found if f.title.startswith("pid 975"))
+        self.assertEqual(pid.fix, "Find the app: ps -o command= -p 975")
+
+    def test_prevented_by_deduped(self):
+        g = " sleep                1 (sleep prevented by Safari, runningboardd, runningboardd)\n"
+        self.assertEqual(settings.parse_prevented_by(g), ["Safari", "runningboardd"])
 
 
 class ProcessesTest(unittest.TestCase):
