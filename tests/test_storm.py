@@ -75,5 +75,26 @@ class StormTest(unittest.TestCase):
         self.assertIn("womp 0", wifi.detail)
 
 
+
+class HealthyNightTest(unittest.TestCase):
+    def test_normal_night_is_ok(self):
+        # Like a real healthy night: ~8 Wi-Fi/BT wakes an hour, no battery loss.
+        lines, end = night(T0, 80, 450, 6, "SMC.OutboxNotEmpty smc.70070000 wifibt/")
+        # Plus a 16-minute Power Nap wake while plugged in, which is normal.
+        t = end + timedelta(hours=1)
+        lines += [
+            line(t, "Sleep", "Entering Sleep state due to 'Idle Sleep': Using AC (Charge:100%)"),
+            line(t + timedelta(hours=1), "DarkWake",
+                 "DarkWake from Deep Idle [CDNP] : due to rtc/Maintenance Using AC (Charge:100%) 960 secs"),
+            line(t + timedelta(hours=1, seconds=960), "Sleep", "Entering Sleep state due to 'Maintenance Sleep': Using AC"),
+            line(t + timedelta(hours=3), "Wake", "Wake from Deep Idle [CDNVA] : due to EC.LidOpen/Lid Open Using AC (Charge:100%)"),
+        ]
+        a = pmset_log.analyze(pmset_log.parse_lines(lines))
+        found = cli.sleep_findings(a, womp_off=True)
+        self.assertEqual([f.severity for f in found], ["ok"])
+        self.assertEqual(found[0].title, "Sleep looks healthy")
+        self.assertIn("battery loss up to 0.0%/hour", found[0].detail)
+
+
 if __name__ == "__main__":
     unittest.main()

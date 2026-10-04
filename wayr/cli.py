@@ -85,12 +85,14 @@ def sleep_findings(a: pmset_log.Analysis, womp_off: Optional[bool] = None) -> Li
             f"Awake {fmt_duration(total_dw)} ({100 * total_dw / total_sleep:.0f}%) of the time it was 'asleep'",
             f"{len(a.dark_wakes):,} dark wakes. See the breakdown by reason and process below.",
         ))
-    long_ones = [d for d in a.dark_wakes if d.duration >= 600]
+    # On AC, Power Nap is allowed to do real work (backups, updates), so only battery counts.
+    long_ones = [d for d in a.dark_wakes if d.duration >= 600 and d.on_battery is not False]
     if long_ones:
         procs = sorted({p for d in long_ones for p in d.processes})
         out.append(Finding(
             "low",
-            f"{len(long_ones)} dark wake(s) lasted 10+ minutes (longest {fmt_duration(max(d.duration for d in long_ones))})",
+            f"{len(long_ones)} dark wake(s) on battery lasted 10+ minutes "
+            f"(longest {fmt_duration(max(d.duration for d in long_ones))})",
             ("Active during them: " + ", ".join(procs[:8])) if procs else
             "Long dark wakes are what make a Mac warm in a bag.",
         ))
@@ -98,8 +100,9 @@ def sleep_findings(a: pmset_log.Analysis, womp_off: Optional[bool] = None) -> Li
     for cause, n, secs in a.reasons()[:3]:
         if cause.category == "user" or n < 3:
             continue
-        # Only causes that matter: more than ~2 wakes/hour, or 5%+ of the sleep time awake.
-        if sleep_hours and n / sleep_hours < 2 and secs < 0.05 * total_sleep:
+        # A healthy Mac wakes ~5-15 times an hour for routine upkeep. Only call out a
+        # cause when it's well beyond that, or keeps the Mac awake 10%+ of the time.
+        if sleep_hours and n / sleep_hours < 20 and secs < 0.10 * total_sleep:
             continue
         advice = cause.advice
         if cause.key in ("wifi_bt", "ethernet") and womp_off:
@@ -111,6 +114,15 @@ def sleep_findings(a: pmset_log.Analysis, womp_off: Optional[bool] = None) -> Li
     if a.failures:
         out.append(Finding("medium", f"{len(a.failures)} sleep/wake failure(s) logged",
                            a.failures[-1].message[:160]))
+    if a.sessions and total_sleep >= 3600 and not any(
+            f.severity in ("high", "medium") for f in out):
+        rate = len(a.dark_wakes) / sleep_hours
+        drains = [s.drain_per_hour for s in a.sessions if s.drain_per_hour is not None]
+        detail = f"~{rate:.0f} brief wakes/hour, awake {100 * total_dw / total_sleep:.0f}% of the time"
+        if drains:
+            detail += f", battery loss up to {max(drains):.1f}%/hour"
+        if not storms:
+            out.append(Finding("ok", "Sleep looks healthy", detail + "."))
     return out
 
 
