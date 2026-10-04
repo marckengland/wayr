@@ -1,0 +1,4 @@
+Scheduled power events:
+ [0]  wake at 10/05/2026 06:00:00 by 'com.apple.alarm.user-invisible-com.example.updater'
+Repeating power events:
+  wakepoweron at 7:00AM every day

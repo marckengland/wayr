@@ -1,0 +1,10 @@
+    1     0 root              0.0  0.1 10-02:11:33   45:12.34 /sbin/launchd
+   98     1 root              0.1  0.1 10-02:11:30    5:01.10 /System/Library/CoreServices/powerd.bundle/powerd
+  501     1 root             35.2  1.0    01:02:03   20:45.00 /System/Library/Frameworks/CoreServices.framework/Frameworks/Metadata.framework/Versions/A/Support/mds_stores
+  777   700 marc             80.0  5.0  2-03:00:00 30:12:00.00 /Applications/Docker.app/Contents/MacOS/com.docker.backend
+  812     1 marc              0.0  0.2  1-00:00:00    0:10.00 /Applications/Amphetamine.app/Contents/MacOS/Amphetamine
+  900     1 marc              2.0  0.1    05:00:00    1:00.00 /Users/marc/Library/Application Support/.hidden/agentd
+  901     1 marc              0.0  0.0       10:00    0:00.50 /private/tmp/updater
+  902     1 marc              0.1  0.1    03:00:00    0:02.00 /Library/Application Support/Google/GoogleUpdater/Current/GoogleUpdater.app/Contents/MacOS/GoogleUpdater
+  903     1 marc              0.0  0.1    03:00:00    0:01.00 /Applications/Safari.app/Contents/MacOS/Safari
+  904   903 marc              0.0  0.0       00:05    0:00.01 kernel_task
