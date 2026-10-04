@@ -132,8 +132,9 @@ def audit(s: PowerSettings, apple_silicon: bool) -> List[Finding]:
 
     if on(b, "powernap"):
         f.append(Finding(
-            "medium", "Power Nap is ON while on battery",
-            "Lets the Mac dark-wake for Mail, iCloud, Time Machine, etc. while asleep.",
+            "low", "Power Nap is ON while on battery",
+            "Lets the Mac dark-wake briefly for Mail, iCloud, Find My, etc. Usually harmless.\n"
+            "Only worth turning off if `wayr sleep` shows many Power Nap/maintenance wakes.",
             "sudo pmset -b powernap 0",
         ))
     elif on(a, "powernap"):
