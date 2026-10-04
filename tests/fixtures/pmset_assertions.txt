@@ -1,0 +1,22 @@
+2026-10-04 12:00:00 +0200 
+Assertion status system-wide:
+   BackgroundTask                 1
+   ApplePushServiceTask           0
+   UserIsActive                   1
+   PreventDiskIdle                0
+   PreventUserIdleDisplaySleep    0
+   PreventSystemSleep             1
+   ExternalMedia                  0
+   PreventUserIdleSystemSleep     1
+   NetworkClientActive            0
+Listed by owning process:
+   pid 98(powerd): [0x0000a1b200019a3c] 02:10:00 PreventUserIdleSystemSleep named: "Powerd - Prevent sleep while display is on" 
+   pid 151(coreaudiod): [0x0000a1b200019a3d] 00:05:12 PreventUserIdleSystemSleep named: "com.apple.audio.BuiltInSpeakerDevice.context.preventuseridlesleep" 
+	Created for PID: 512. 
+   pid 812(Amphetamine): [0x0000a1b200019a3e] 05:00:00 PreventSystemSleep named: "Amphetamine session" 
+   pid 400(cloudd): [0x0000a1b200019a3f] 00:00:12 BackgroundTask named: "com.apple.cloudd.sync" 
+   pid 345(WindowServer): [0x0000a1b200019a40] 00:00:00 UserIsActive named: "com.apple.iohideventsystem.queue.tickle serviceID:100000123 product:Apple Internal Keyboard / Trackpad eventType:3" 
+	Timeout will fire in 600 secs Action=TimeoutActionRelease
+Kernel Assertions: 0x4=USB
+   id=500  level=255 0x4=USB mod=10/4/26, 11:00 AM description=com.apple.usb.externaldevice.14100000 owner=AppleUSBXHCIPort
+Idle sleep preventers: IODisplayWrangler

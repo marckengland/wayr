@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        python: ["3.9", "3.12"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Unit tests
+        run: python -m unittest discover -s tests -t . -v
+      - name: Smoke test against real macOS commands
+        if: runner.os == 'macOS'
+        run: |
+          python -m wayr report --no-color
+          python -m wayr sleep --days 30 --no-color -v
+          python -m wayr jobs --all --no-color
+          python -m wayr procs --all --no-color
+          python -m wayr record
+          python -m wayr snapshots --no-color

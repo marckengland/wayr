@@ -1,0 +1,29 @@
+Time stamp                Domain               Message                                                                          Duration  Delay
+==========                ======               =======                                                                          ========  =====
+2026-10-01 06:58:10 +0200 DarkWake            	DarkWake from Deep Idle [CDNP] : due to NUB.SPMI0Sw3IRQ nub-spmi0.0x02 rtc/Maintenance Using BATT (Charge:97%) 30 secs
+2026-10-01 07:58:40 +0200 Wake                	DarkWake to FullWake from Deep Idle [CDNVA] : due to UserActivity Assertion Using BATT (Charge:96%)
+2026-10-01 08:59:00 +0200 Assertions          	PID 98(powerd) Created PreventUserIdleSystemSleep "Powerd - Prevent sleep while display is on" 00:00:00  id:0x0x10000a1b1 [System: DeclUser kDisp]
+2026-10-01 09:00:01 +0200 Wake Requests       	[*process=mDNSResponder request=Maintenance deltaSecs=3600 wakeAt=2026-10-01 10:00:02 info="com.apple.mDNSResponder.sleep-proxy"] [process=dasd request=SleepService deltaSecs=7200 wakeAt=2026-10-01 11:00:01]
+2026-10-01 09:00:02 +0200 Sleep               	Entering Sleep state due to 'Clamshell Sleep':TCPKeepAlive=active Using Batt (Charge:95%) 3598 secs
+2026-10-01 10:00:00 +0200 DarkWake            	DarkWake from Deep Idle [CDNP] : due to NUB.SPMI0Sw3IRQ nub-spmi0.0x02 rtc/Maintenance Using BATT (Charge:94%) 45 secs
+2026-10-01 10:00:05 +0200 Assertions          	PID 312(backupd) Created BackgroundTask "com.apple.backupd.autobackup" 00:00:00  id:0x0x10000a1c2 [System: BGTask SRPrevSleep]
+2026-10-01 10:00:06 +0200 Assertions          	PID 400(cloudd) Created BackgroundTask "com.apple.cloudd.sync" 00:00:00  id:0x0x10000a1c3 [System: BGTask SRPrevSleep]
+2026-10-01 10:00:20 +0200 Assertions          	PID 312(backupd) Released BackgroundTask "com.apple.backupd.autobackup" 00:00:15  id:0x0x10000a1c2 [System: BGTask SRPrevSleep]
+2026-10-01 10:00:44 +0200 Wake Requests       	[*process=dasd request=SleepService deltaSecs=3600 wakeAt=2026-10-01 11:00:46]
+2026-10-01 10:00:45 +0200 Sleep               	Entering Sleep state due to 'Maintenance Sleep':TCPKeepAlive=active Using Batt (Charge:94%) 3601 secs
+2026-10-01 11:00:46 +0200 DarkWake            	DarkWake from Deep Idle [CDNP] : due to NUB.SPMI0Sw3IRQ nub-spmi0.0x02 rtc/SleepService Using BATT (Charge:93%) 1200 secs
+2026-10-01 11:00:50 +0200 Assertions          	PID 501(mds_stores) Created PreventUserIdleSystemSleep "com.apple.metadata.mds_stores.power" 00:00:00  id:0x0x10000a1d4 [System: PrevIdle BGTask]
+2026-10-01 11:01:10 +0200 Assertions          	PID 777(com.docker.backend) Created PreventUserIdleSystemSleep "Docker" 00:00:00  id:0x0x10000a1d5 [System: PrevIdle BGTask]
+2026-10-01 11:20:46 +0200 Sleep               	Entering Sleep state due to 'Maintenance Sleep':TCPKeepAlive=active Using Batt (Charge:90%) 2400 secs
+2026-10-01 11:45:00 +0200 Assertions          	PID 777(com.docker.backend) Created PreventUserIdleSystemSleep "Docker" 00:00:00  id:0x0x10000a1d6 [System: PrevIdle BGTask]
+2026-10-01 12:00:46 +0200 DarkWake            	DarkWake from Deep Idle [CDNP] : due to SMC.OutboxNotEmpty smc.70070000 wifibt/ Using BATT (Charge:89%) 60 secs
+2026-10-01 12:01:46 +0200 Sleep               	Entering Sleep state due to 'Maintenance Sleep':TCPKeepAlive=active Using Batt (Charge:89%) 3600 secs
+2026-10-01 13:01:46 +0200 DarkWake            	DarkWake from Deep Idle [CDNP] : due to ARPT/ Using BATT (Charge:88%) 30 secs
+2026-10-01 13:02:16 +0200 Sleep               	Entering Sleep state due to 'Maintenance Sleep':TCPKeepAlive=active Using Batt (Charge:88%) 14000 secs
+2026-10-01 14:30:00 +0200 Failure             	Sleep Failure [Code: 0x1F000001] : Failure during sleep phase: kIOPMTracePointSleepDriversNotify
+2026-10-01 17:00:00 +0200 Wake                	Wake from Deep Idle [CDNVA] : due to EC.LidOpen/Lid Open Using BATT (Charge:80%)
+2026-10-01 17:00:01 +0200 Assertions          	PID 98(powerd) Created PreventUserIdleSystemSleep "Powerd - Prevent sleep while display is on" 00:00:00  id:0x0x10000a1e1 [System: DeclUser kDisp]
+2026-10-01 23:00:00 +0200 Sleep               	Entering Sleep state due to 'Idle Sleep':TCPKeepAlive=active Using AC (Charge:100%) 25200 secs
+2026-10-02 02:00:00 +0200 DarkWake            	DarkWake from Deep Idle [CDNP] : due to XHC1/ Using AC (Charge:100%) 20 secs
+2026-10-02 02:00:20 +0200 Sleep               	Entering Sleep state due to 'Maintenance Sleep':TCPKeepAlive=active Using AC (Charge:100%) 17980 secs
+2026-10-02 07:00:00 +0200 Wake                	Wake from Deep Idle [CDNVA] : due to EC.PowerButton/User Using AC (Charge:100%)
