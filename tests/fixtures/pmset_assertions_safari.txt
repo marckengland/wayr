@@ -1,0 +1,27 @@
+2026-10-04 13:10:00 +0800 
+Assertion status system-wide:
+   BackgroundTask                 0
+   ApplePushServiceTask           0
+   UserIsActive                   1
+   PreventDiskIdle                0
+   PreventUserIdleDisplaySleep    1
+   PreventSystemSleep             0
+   ExternalMedia                  0
+   PreventUserIdleSystemSleep     1
+   NetworkClientActive            0
+Listed by owning process:
+   pid 98(powerd): [0x00000a0b00018001] 00:55:20 PreventUserIdleSystemSleep named: "Powerd - Prevent sleep while display is on" 
+   pid 1260(Safari): [0x00000a0b00018002] 00:07:23 PreventUserIdleSystemSleep named: "com.apple.WebCore: HTMLMediaElement playback" 
+   pid 9869(Claude): [0x00000a0b00018003] 00:03:08 NoIdleSleepAssertion named: "Electron" 
+   pid 611(runningboardd): [0x00000a0b00018004] 00:54:33 PreventUserIdleSystemSleep named: "xpcservice<com.apple.WebKit.GPU([app<application.com.apple.Safari.190775.191441(501)>:1260])(501)>{vt hash: 0}[uuid:B5971479-1DAB-439B-B14F-CBABA0DE2430]{definition:com.apple.WebKit.GPU[standard][client]}:1354611-1260-32127:WebKit Media Playback" 
+	Created for PID: 1354. 
+   pid 611(runningboardd): [0x00000a0b00018005] 00:54:33 PreventUserIdleSystemSleep named: "app<application.com.apple.Safari.190775.191441(501)>611-1260-32126:WebKit Media Playback" 
+	Created for PID: 1260. 
+   pid 746(coreaudiod): [0x00000a0b00018006] 00:55:11 PreventUserIdleSystemSleep named: "com.apple.audio.BuiltInSpeakerDevice.context.preventuseridlesleep" 
+	Created for PID: 1354. 
+   pid 746(coreaudiod): [0x00000a0b00018007] 00:55:11 PreventUserIdleSystemSleep named: "com.apple.audio.AudioTap-6645AA25-FAD4-4DCF-832B-0A57185E4713.context.preventuseridlesleep" 
+	Created for PID: 975. 
+Kernel Assertions: 0x4=USB
+   id=500  level=255 0x4=USB mod=10/4/26, 12:15 PM description=com.apple.usb.externaldevice.01100000 owner=USB2.0
+   id=501  level=255 0x4=USB mod=10/4/26, 12:15 PM description=com.apple.usb.externaldevice.01130000 owner=Pulsar
+Idle sleep preventers: IODisplayWrangler

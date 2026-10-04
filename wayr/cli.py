@@ -208,8 +208,8 @@ def cmd_settings(args: argparse.Namespace) -> List[Finding]:
 
 def cmd_blockers(args: argparse.Namespace) -> List[Finding]:
     state = assertions.collect()
-    prevented = settings.parse_prevented_by(run(["pmset", "-g"]).stdout)
-    found = assertions.findings(state, prevented)
+    pid_names = {p.pid: p.name for p in processes.parse_ps(run(processes.PS_ARGS).stdout)}
+    found = assertions.findings(state, pid_names)
     heading("Preventing sleep right now")
     for f in sorted(found, key=lambda f: f.rank):
         print_finding(f)
