@@ -105,10 +105,13 @@ def sleep_findings(a: pmset_log.Analysis, womp_off: Optional[bool] = None) -> Li
         if sleep_hours and n / sleep_hours < 20 and secs < 0.10 * total_sleep:
             continue
         advice = cause.advice
-        if cause.key in ("wifi_bt", "ethernet") and womp_off:
+        if cause.key == "wifi_bt" and womp_off:
             advice = ("'Wake for network access' is already off. Wi-Fi and Bluetooth share one chip, "
                       "so the log can't tell them apart.\nTo find out: sleep one night with "
                       "Bluetooth off, one with it on, and compare `wayr sleep --days 1`.")
+        elif cause.key in ("wifi", "ethernet") and womp_off:
+            advice = ("'Wake for network access' is already off, so the network chip is waking "
+                      "the Mac on its own.\nRun `wayr sleep -v` to see the exact wake codes.")
         out.append(Finding("medium", f"{n:,}× woken by: {cause.label} ({fmt_duration(secs)} awake)",
                            advice))
     if a.failures:

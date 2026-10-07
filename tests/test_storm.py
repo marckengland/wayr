@@ -76,6 +76,18 @@ class StormTest(unittest.TestCase):
 
 
 
+class KeepAliveStormTest(unittest.TestCase):
+    def test_names_tcp_keepalive_and_fix(self):
+        reason = ("smc.sysState.Wake(0x70070000) wifibt SMC.OutboxNotEmpty centauri-alpha "
+                  "E_TKO_SEQ_NUM_INVALID ARPT")
+        lines, _ = night(T0, 300, 15, 6, reason, (70, 60))
+        a = pmset_log.analyze(pmset_log.parse_lines(lines))
+        found = cli.sleep_findings(a, womp_off=True)
+        self.assertIn("Main cause: Wi-Fi: TCP keep-alive offload", found[0].detail)
+        tko = next(f for f in found if "woken by: Wi-Fi: TCP keep-alive" in f.title)
+        self.assertIn("sudo pmset -b tcpkeepalive 0", tko.detail)
+
+
 class HealthyNightTest(unittest.TestCase):
     def test_normal_night_is_ok(self):
         # Like a real healthy night: ~8 Wi-Fi/BT wakes an hour, no battery loss.

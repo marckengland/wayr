@@ -54,6 +54,24 @@ _CAUSES: List[Tuple[WakeCause, List[str]]] = [
         [r"\brtc\b", r"alarm"],
     ),
     (
+        # E_TKO_* = TCP Keep-alive Offload errors. While the Mac sleeps, the Wi-Fi chip keeps
+        # some TCP connections (mainly Apple Push) alive; an unexpected reply wakes the Mac.
+        # A connection stuck in a bad state does this every few seconds: a wake storm.
+        WakeCause("tcp_keepalive", "Wi-Fi: TCP keep-alive offload", "network",
+                  "While asleep, the Wi-Fi chip keeps network connections alive for macOS. "
+                  "When the other end answers\nunexpectedly (E_TKO_SEQ_NUM_INVALID, E_TKO_NO_RESPONSE, "
+                  "E_TKO_TCP_DATA), the chip wakes the Mac.\nA connection stuck in that state wakes "
+                  "it every few seconds. Fix: sudo pmset -b tcpkeepalive 0\n(Trade-off: push "
+                  "notifications and Find My Mac update less often while the lid is closed.)"),
+        [r"e_tko", r"\btko\b"],
+    ),
+    (
+        WakeCause("wifi", "Wi-Fi", "network",
+                  "The Wi-Fi chip woke the Mac (network traffic). Turn off 'Wake for network "
+                  "access' (sudo pmset -a womp 0)."),
+        [r"\barpt\b"],
+    ),
+    (
         WakeCause("wifi_bt", "Wi-Fi / Bluetooth", "network",
                   "A network packet or Bluetooth device woke the Mac. Turn off 'Wake for "
                   "network access' (sudo pmset -a womp 0) and Bluetooth wake."),

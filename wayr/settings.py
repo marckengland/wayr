@@ -147,8 +147,9 @@ def audit(s: PowerSettings, apple_silicon: bool) -> List[Finding]:
     if on(b, "tcpkeepalive"):
         f.append(Finding(
             "low", "TCP keep-alive is ON while on battery",
-            "Causes periodic maintenance wakes to keep network connections alive.\n"
-            "Trade-off: turning it off makes 'Find My Mac' less reliable while asleep.",
+            "The Wi-Fi chip keeps connections alive while asleep. If one gets stuck, it wakes the Mac\n"
+            "every few seconds (a wake storm; `wayr sleep` shows it as 'TCP keep-alive offload').\n"
+            "Trade-off: turning it off makes push notifications and 'Find My Mac' less timely while asleep.",
             "sudo pmset -b tcpkeepalive 0",
         ))
 
