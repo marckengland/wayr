@@ -103,7 +103,7 @@ class AnalyzeTest(unittest.TestCase):
 
     def test_reasons(self):
         keys = {c.key: n for c, n, _ in self.a.reasons()}
-        self.assertEqual(keys, {"maintenance": 2, "sleep_service": 1, "wifi_bt": 2, "usb": 1})
+        self.assertEqual(keys, {"maintenance": 2, "sleep_service": 1, "wifi_bt": 1, "wifi": 1, "usb": 1})
 
     def test_failures(self):
         self.assertEqual(len(self.a.failures), 1)
@@ -125,7 +125,13 @@ class ClassifyTest(unittest.TestCase):
             "rtc/SleepService": "sleep_service",
             "NUB.SPMISw3IRQ nub-spmi-a0.0x02 rtc/HalfHourAlarm": "rtc",
             "SMC.OutboxNotEmpty smc.70070000 wifibt": "wifi_bt",
-            "ARPT": "wifi_bt",
+            "ARPT": "wifi",
+            # Real reasons from a MacBook during a wake storm:
+            "smc.sysState.Wake(0x70070000) wifibt SMC.OutboxNotEmpty centauri-alpha E_TKO_SEQ_NUM_INVALID ARPT": "tcp_keepalive",
+            "smc.sysState.Wake(0x70070000) wifibt SMC.OutboxNotEmpty centauri-alpha E_TKO_NO_RESPONSE ARPT": "tcp_keepalive",
+            "smc.sysState.Wake(0x70070000) wifibt SMC.OutboxNotEmpty centauri-alpha E_TKO_TCP_DATA ARPT": "tcp_keepalive",
+            "smc.sysState.Wake(0x70070000) wifibt SMC.OutboxNotEmpty centauri-beta": "wifi_bt",
+            "smc.sysState.Wake(0x70070000) USB-C_plug SMC.OutboxNotEmpty nub-spmi-a0.0x3F": "usb",
             "XHC1": "usb",
             "EC.ACAttach": "power_adapter",
             "UserActivity Assertion": "user",

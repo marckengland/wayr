@@ -154,6 +154,7 @@ class DarkWake:
     processes: Counter = field(default_factory=Counter)  # name -> assertions started
     promoted: bool = False  # turned into a full wake (user opened the lid)
     logged_secs: Optional[int] = None
+    on_battery: Optional[bool] = None
 
     @property
     def cause(self) -> WakeCause:
@@ -371,7 +372,8 @@ def analyze(entries: Iterable[Entry], since: Optional[datetime] = None) -> Analy
                 cur = SleepSession(start=e.ts, sleep_reason="(log starts mid-sleep)", partial=True)
             if dw is not None and dw.end is None:
                 dw.end = e.ts
-            dw = DarkWake(start=e.ts, reason=e.wake_reason, logged_secs=e.logged_secs)
+            dw = DarkWake(start=e.ts, reason=e.wake_reason, logged_secs=e.logged_secs,
+                          on_battery=e.on_battery)
             settle(e.ts, dw)
             _attach_request(dw, requests)
             cur.dark_wakes.append(dw)
